@@ -31,6 +31,8 @@ double q =1;
 double r2d = 180/M_PI, d2r = M_PI / 180;
 double n0, solid_angle;
 
+int index_grid(double r);
+
 void
 spherical_coordinats(int n, double *x, double *y, double *z, double *a, double *b, double *r) {
 	int i; 
@@ -61,11 +63,14 @@ int
 inside_sp(double a,double b,double r) {
 	if(r < R[0]) { return 1; }
 	if(r > R[1]) { return 2; }
-    if( ( A[0] == A[1] ) & (B[0] == B[1]) ) return 0; 
-	if(a < A[0]) { return 3; }
-	if(a > A[1]) { return 4; }
-	if(b < B[0]) { return 5; }
-	if(b > B[1]) { return 6; }
+    if( A[0] != A[1] ) {
+        if(a < A[0]) { return 3; }
+        if(a > A[1]) { return 4; }
+    }      
+    if( B[0] != B[1] ) { 
+	    if(b < B[0]) { return 5; }
+	    if(b > B[1]) { return 6; }
+    }
 	return 0;
 }
 
@@ -561,7 +566,8 @@ R_max_find() {
 	    	spherical_coordinats(1, &p[i][0], &p[i][1], &p[i][2], &a, &b, &r);
 	    	//printf("%lf %lf %lf\n", a*180/M_PI, b*180/M_PI, r);
 	    	da = 2*M_PI, db = 2*M_PI;
-	    	if( A[0] != A[1] - 2*M_PI) {
+	    	if( (A[0] != A[1] - 2*M_PI) &
+                (A[0] != A[1])  ) {
 	    		da = MIN(a - A[0], A[1] - a); 
 	    	}
 	    	//if( B[0] != -M_PI/2 ) { 

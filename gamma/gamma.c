@@ -18,7 +18,7 @@ double **P;  // Array of points. p[i][N]
 double *R_max; // Rmax ofc
 int    *R_max_ind; // Rmax compared to grid. grid[R_max_ind] < R_max[i] < grid[R_max_ind + 1] ???
 
-int grid_n = 1000;
+int grid_n = 800;
 double *grid, grid_h1, grid_R[2] = {1e-3, 1e3}; // grid itseld, h+1 and limits. 
 double *max_dist; 
 
@@ -32,6 +32,10 @@ double r2d = 180/M_PI, d2r = M_PI / 180;
 double n0, solid_angle;
 
 int index_grid(double r);
+typedef struct statK {
+    int Nc; 
+    myint c_sh, c_sp; 
+} statK;
 
 void
 spherical_coordinats(int n, double *x, double *y, double *z, double *a, double *b, double *r) {
@@ -89,14 +93,14 @@ update_max_dist(int i, int j, int K, double rd) {
     }
 }
 
-void
-add(int i, int j, int K) {
-	int k;
-	for(k=K+1; k<=MIN(R_max_ind[i]+1, grid_n); k++) {
-	//for(k=K+1; k<=(grid_n); k++) {
-		m[i][k] ++;
-	}
-}
+// void
+// add(int i, int j, int K) {
+// 	int k;
+//     //for(k=K+1; k<=MIN(R_max_ind[i]+1, grid_n); k++) {
+// 	//for(k=K+1; k<=(grid_n); k++) {
+// 		m[i][k] ++;
+// 	}
+// }
 
 void
 count() {
@@ -109,11 +113,16 @@ count() {
             rd = sqrt(pow(p[i][0]-p[j][0],2)+pow(p[i][1]-p[j][1],2)+pow(p[i][2]-p[j][2],2)); 
 			if( rd < neighbor[i] ) neighbor[i] = rd;
 			if( rd < neighbor[j] ) neighbor[j] = rd;
-            k = index_grid(rd);
-            if(rd < R_max[i]) 
-				add(i, j, k ); 
-			if(rd < R_max[j])
-				add(j, i, k ); 
+            k = index_grid(rd); // grid[k] < rd < grid[k+1]
+
+            if( k < R_max_ind[i]) {
+                m[i][k] ++ ;
+				//add(i, j, k ); 
+            }
+			if( k < R_max_ind[j]) {
+                m[j][k] ++ ;
+				//add(j, i, k ); 
+            }
             // if( (rd < R_max[i]) & (rd < R_max[j]) ) {
             // update_max_dist(i, j, k, rd);
             // }
@@ -122,103 +131,145 @@ count() {
 	printf("\n");
 }
 
-double
-ave_N(int k) {
-	int i, j;
-	int nc; 
-	myint count;
-	count = 0; nc = 0;
+// double
+// ave_N(int K) {
+// 	int i, j, k;
+// 	int nc; 
+// 	myint count;
+// 	count = 0; nc = 0;
+// 	for(i=0; i<N; i++) {
+//         if( R_max_ind[i] <= K ) 
+//             continue; 
+// 
+//         nc++; 
+// 
+//         for( k=0; k<=K; k++ ) {
+// 			count += m[i][k]; 	
+//         }
+// 		//if(R_max_ind[i]-1 >= k) {
+// 		//	count += m[i][k]; 	
+// 		//	nc++; 
+// 		//} 	
+// 	}
+// 	//if( nc == 0 | count == 0 ) return -1; 
+// 	if( nc == 0 ) return -1; 
+// 	return (double) count/nc;
+// }
+// 
+// double
+// ave_N_shell(int K) {
+// 	int i, j;
+// 	int nc; 
+// 	myint count;
+// 	count = 0; nc = 0;
+// 	for(i=0; i<N; i++) {
+//         if( R_max_ind[i] <= K ) 
+//             continue; 
+//         nc++; 
+// 		count += m[i][k]; 	
+//         
+// 		//if(R_max_ind[i]-1 >= k) {
+// 		//	count += m[i][k]; 	
+// 		//	nc++; 
+// 		//} 	
+// 	}
+// 	//for(i=0; i<N; i++) {
+// 	//	if(R_max_ind[i]-1 >= k) {
+// 	//		count += m[i][k] - m[i][k-1]; 	
+//     //        if( m[i][k] - m[i][k-1] < 0 ) 
+//     //            printf("PEW\n");
+// 	//		nc++; 
+// 	//	} 	
+// 	//}
+// 	//if( nc == 0 | count == 0 ) return -1; 
+// 	if( nc == 0 ) return -1; 
+// 	return (double) count/nc;
+// }
+// 
+
+// double
+// calc_nc(int K) {
+// 	int i;
+// 	double nc; 
+// 	nc = 0.0;
+// 	for(i=0; i<N; i++) {
+// 		if(R_max_ind[i] <= K)
+//         // if(m[i][k] > 0) 
+// 			nc++; 
+// 	}
+// 	return (double) nc;
+// }
+// 
+// double
+// sd(int k) {
+// 	int i;
+// 	int nc; 
+// 	int count;
+// 	count = 0; nc = 0;
+// 	for(i=0; i<N; i++) {
+// 		if(R_max_ind[i] >= k) {
+// 			count += m[i][k]; 	
+// 			nc++; 
+// 		} 	
+// 	}
+// 
+// 	double mean = (double) count / nc; 
+// 	double delta = 0;
+// 
+// 	for(i=0; i<N; i++) {
+// 		if(R_max_ind[i] >= k) {
+// 			delta += pow( (double) m[i][k] - mean , 2);
+// 		} 	
+// 	}
+// 	return (double) sqrt( (double) 1. / (nc-1) * sqrt(delta) );
+// }
+// 
+// double
+// sigma(int k) {
+// 	int i;
+// 	int nc; 
+// 	int count;
+// 	count = 0; nc = 0;
+// 	for(i=0; i<N; i++) {
+// 		if(R_max_ind[i] >= k) {
+// 			count += m[i][k]; 	
+// 			nc++; 
+// 		} 	
+// 	}
+// 
+// 	double mean = (double) count / nc; 
+// 	double delta = 0;
+// 
+// 	for(i=0; i<N; i++) {
+// 		if(R_max_ind[i] >= k) {
+// 			delta += pow( (double) m[i][k] - mean , 2);
+// 		} 	
+// 	}
+// 	return (double) ( (double) 1. / (nc-1) * delta / pow(mean,2) );
+// }
+
+statK
+foo(int K) {
+	int i, j, k;
+    statK F; 
+	F.c_sh = 0;
+    F.c_sp = 0;
+    F.Nc = 0; 
 	for(i=0; i<N; i++) {
-		if(R_max_ind[i]-1 >= k) {
-			count += m[i][k]; 	
-			nc++; 
-		} 	
+        if( R_max_ind[i] <= K ) 
+            continue; 
+        F.Nc++; 
+        for( k=0; k<=K; k++ ) {
+			F.c_sp += m[i][k]; 	
+        }
+        F.c_sh = m[i][K];
 	}
 	//if( nc == 0 | count == 0 ) return -1; 
-	if( nc == 0 ) return -1; 
-	return (double) count/nc;
+	return F;
 }
 
-double
-ave_N_shell(int k) {
-	int i, j;
-	int nc; 
-	myint count;
-	count = 0; nc = 0;
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i]-1 >= k) {
-			count += m[i][k] - m[i][k-1]; 	
-            if( m[i][k] - m[i][k-1] < 0 ) 
-                printf("PEW\n");
-			nc++; 
-		} 	
-	}
-	//if( nc == 0 | count == 0 ) return -1; 
-	if( nc == 0 ) return -1; 
-	return (double) count/nc;
-}
-
-
-double
-calc_nc(int k) {
-	int i;
-	double nc; 
-	nc = 0.0;
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i]-1 >= k)
-        if(m[i][k] > 0) 
-			nc++; 
-	}
-	return (double) nc;
-}
-
-double
-sd(int k) {
-	int i;
-	int nc; 
-	int count;
-	count = 0; nc = 0;
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i] >= k) {
-			count += m[i][k]; 	
-			nc++; 
-		} 	
-	}
-
-	double mean = (double) count / nc; 
-	double delta = 0;
-
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i] >= k) {
-			delta += pow( (double) m[i][k] - mean , 2);
-		} 	
-	}
-	return (double) sqrt( (double) 1. / (nc-1) * sqrt(delta) );
-}
-
-double
-sigma(int k) {
-	int i;
-	int nc; 
-	int count;
-	count = 0; nc = 0;
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i] >= k) {
-			count += m[i][k]; 	
-			nc++; 
-		} 	
-	}
-
-	double mean = (double) count / nc; 
-	double delta = 0;
-
-	for(i=0; i<N; i++) {
-		if(R_max_ind[i] >= k) {
-			delta += pow( (double) m[i][k] - mean , 2);
-		} 	
-	}
-	return (double) ( (double) 1. / (nc-1) * delta / pow(mean,2) );
-}
+double volume_sp(double r) { return( 4./3. * M_PI * pow(r,3)); }
+double volume_sh(double r1, double r2) { return( 4./3. * M_PI * pow(MAX(r1,r2),3) - pow(MIN(r1,r2),3)); }
 
 void
 write_result() {
@@ -241,20 +292,23 @@ write_result() {
     //foutput = fopen("gamma_2d.dat", "w");
 
     int HAI = index_grid(10.);
-    double HAX = ave_N(HAI) / (4./3.*M_PI*pow(grid[HAI],3));
-	for(k=1; k<grid_n; k++) {
-		if( ave_N(k) <= 0 ) continue; 
-		fprintf(foutput, " %le", grid[k] ); 
-		fprintf(foutput, " %le", (double) ave_N(k) / (4./3.*M_PI*pow(grid[k],3)) );  
-		fprintf(foutput, " %le", (double) ave_N(k) / (4./3.*M_PI*pow(grid[k],3)) / n0 );  
-		fprintf(foutput, " %le", (double) ave_N(k) / (4./3.*M_PI*pow(grid[k],3)) / HAX );  
-        fprintf(foutput, " %le", (double) ( ave_N_shell(k) ) / (4./3.*M_PI*pow(grid[k],3) - 4./3.*M_PI*pow(grid[k-1],3)) );  
-		fprintf(foutput, " %le", sigma(k) ); 
-		fprintf(foutput, " %le", calc_nc(k) / N * 100 ); 
-		fprintf(foutput, " %le", ave_N(k) ); 
-		fprintf(foutput, " %le", (double) sqrt( 1. / ave_N(k) ) ); 
-		fprintf(foutput, " %le", grid[k] / closest ); 
-        fprintf(foutput, " %le", max_dist[k]);
+    //double HAX = ave_N(HAI) / (4./3.*M_PI*pow(grid[HAI],3));
+    statK F;
+	for(k=1; k<grid_n-1; k++) {
+        F = foo(k); 
+        if( F.Nc == 0 ) continue; 
+		fprintf(foutput, "%le ", grid[k] ); 
+		fprintf(foutput, "%le ", (double) F.c_sp / F.Nc / volume_sp(grid[k]) ); 
+		fprintf(foutput, "%le ", (double) F.c_sh / F.Nc / volume_sh(grid[k], grid[k+1]) ); 
+		fprintf(foutput, "%d  ", F.c_sp ); 
+		fprintf(foutput, "%d  ", F.c_sh ); 
+		fprintf(foutput, "%d  ", F.Nc ); 
+		//fprintf(foutput, "%le ", sigma(k) ); 
+		//fprintf(foutput, "%le ", calc_nc(k) / N * 100 ); 
+		//fprintf(foutput, "%le ", ave_N(k) ); 
+		//fprintf(foutput, "%le ", (double) sqrt( 1. / ave_N(k) ) ); 
+		//fprintf(foutput, "%le ", grid[k] / closest ); 
+        //fprintf(foutput, "%le ", max_dist[k]);
 		fprintf(foutput, "\n");
 	}
 	fclose(foutput);
@@ -288,6 +342,8 @@ write_mad() {
 
 	sprintf(output, "%s_mad.dat", name);
 	foutput = fopen(output, "w");
+
+    /*
     max = m[0][k]; min = m[0][k];
     for( k = 0; k < grid_n; k++ ) {
         for( i = 0; i < N; i++ ) {
@@ -310,6 +366,7 @@ write_mad() {
             fprintf(foutput, "%d ", hist[j]);
         fprintf(foutput, "\n");
     }
+    */
     /*
     for( k = 0; k < grid_n; k++ ) {
         max = m[0][k]; min = m[0][k];
@@ -332,18 +389,23 @@ write_mad() {
         fprintf(foutput, "\n");
     }
     */
-    /*
-    fprintf(foutput, "%d %le \n", 0, 0);
-    for(k=0; k<grid_n; k++) {
-      fprintf(foutput, "%le ", grid[k]);    
-    } fprintf(foutput, "\n");
+    fprintf(foutput, "%d %d %d %d %d %d ", 0, 0, 0, 0, 0, 0);
+    for(k=0; k<grid_n; k++) { fprintf(foutput, "%le ", grid[k]); } fprintf(foutput, "\n"); 
+    fprintf(foutput, "%d %d %d %d %d %d ", 0, 0, 0, 0, 0, 0);
+    for(k=0; k<grid_n; k++) { fprintf(foutput, "%le ", (4./3.*M_PI*pow(grid[k],3))); } fprintf(foutput, "\n"); 
+    fprintf(foutput, "%d %d %d %d %d %d ", 0, 0, 0, 0, 0, 0);
+    for(k=0; k<grid_n; k++) { fprintf(foutput, "%le ", (4./3.*M_PI*pow(grid[k],3) - 4./3.*M_PI*pow(grid[k-1],3))); } fprintf(foutput, "\n"); 
+
     for( i=0; i<N; i++ ) {
-        fprintf(foutput, "%d %le \n", R_max_ind[i], R_max[i]);
+        fprintf(foutput, "%d %le %le ", R_max_ind[i], R_max[i], P[i][2]);
+        fprintf(foutput, "%le %le %le ", p[i][0], p[i][1], p[i][2]);
         for( k=0; k<grid_n; k++ ) {
-          fprintf(foutput, "%le ", m[i][k]);
+            fprintf(foutput, "%llu ", m[i][k]);
+            //if( R_max_ind[i] < k ) {
+            //    if( m[i][k] != 0 ) printf("PewPew? %1.3f\t%1.3f\t%1.3f\n", grid[k], R_max[i], grid[k+1] );
+            //}
         } fprintf(foutput, "\n");
     }
-    */
     fclose(foutput);
 }
 
@@ -432,7 +494,10 @@ read_data() {
     if( (A[1] == A[0]) & (B[0] == B[1]) ) {
         solid_angle = 4 * M_PI;
     } else {
-	    solid_angle = (A[1] - A[0]) * (sin(B[1]) - sin(B[0]));
+        if( A[1] == A[0] ) 
+            solid_angle = 2*M_PI *  (sin(B[1]) - sin(B[0]));
+        else 
+	        solid_angle = (A[1] - A[0]) * (sin(B[1]) - sin(B[0]));
     }
 	n0 = (double) 3. * N / (solid_angle * (pow(R[1],3) - pow(R[0],3)) );
 	printf("%d selected.\n", N);
@@ -501,6 +566,9 @@ init_second() {
 	m = (myint **) calloc(N, sizeof(myint *));
 	for(i=0; i<N; i++) {
 		m[i] = (myint *) calloc(grid_n, sizeof(myint));
+        for( k = 0; k<grid_n; k++ ) {
+            m[i][k] = 0;
+        }
 	}
 	/*	
 	pos = (int ***) calloc(N, sizeof(int **));
@@ -529,7 +597,10 @@ int
 index_grid(double r) {
 	int i;
 	i = (int) (log(r / grid[0] ) / log(grid_h1)); 
-	if(i<0) i = 0;
+	if(i<0) {
+        printf("index_grid ALARM %lf\n", r);
+        i = 0;
+    }
 	return i;
 }
 
@@ -587,6 +658,7 @@ R_max_find() {
 	    		R_max[i] = MIN(R_max[i], r * sin(db) ); 
 	    		//if(R_max[i] == r * sin(db)) R_max_ind[i] = 3; 
 	    	}
+
 	    	R_max_ind[i] = index_grid(R_max[i]);
 	    	if(R_max[i] == 0) {
 	    		printf("Rmax == 0; %lf %lf %lf\n", a, b, r);
@@ -690,6 +762,16 @@ SL() {
     }
 }
 
+void
+ololo() {
+    int i,j,k;
+    for( i=0; i<N; i++ ) {
+        if( grid[R_max_ind[i]] > R_max[i] ) 
+            printf("FUCK #1 %d\t%e\t%e\t%e\n", i, grid[R_max_ind[i]],  R_max[i], grid[R_max_ind[i]+1]);
+        if( grid[R_max_ind[i]+1] < R_max[i] ) 
+            printf("FUCK #2 %d\n", i);
+    }
+}
 
 void
 gogogo() {
@@ -706,12 +788,15 @@ gogogo() {
 	//R_max_check();
 	count(); 
 	write_result(); 
-	//write_mad(); 
+	write_mad(); 
+    int k=index_grid(1); 
+    printf("%1.3f\t%1.3f\t%1.3f\t%d\n", grid[k-1], grid[k], grid[k+1], index_grid(grid[k]));
 	//hist( R_max, N, 1, "rmax_hist.dat" );
 	//double foo[10] = {-1,-1,-1,-2,-1,4,0,1,1,1};
 	//hist( foo, 10, ( max(foo, 10) - min(foo, 10) ) / 5, "rmax_hist.dat" );
 	//printf("\n %lf %lf %lf\n", max(foo, 10) , min(foo, 10), ( max(foo, 10) - min(foo, 10) ) / 5);
 	//SL();
+    //ololo();
 }
 
 int main( int argc, char *argv[] ) {

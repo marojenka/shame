@@ -17,9 +17,10 @@ size_t cantor_square(	double x, double y, double z, // Координаты це
 
 	double r;
 	if( lim >= h ) {
-		x += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;
-		y += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;
-		z += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;		
+        // x += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;
+		// y += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;
+		// z += h * (( (double) rand() / RAND_MAX) * 2 - 1) ;		
+
         if( (sqrt(x*x + y*y + z*z) < R) & 
             ( ((double) rand() / RAND_MAX) < q ) ) {
 		    fprintf(out, "%.16e %.16e %.16e\n", x, y, z);

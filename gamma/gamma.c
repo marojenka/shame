@@ -248,6 +248,9 @@ count() {
 // 	return (double) ( (double) 1. / (nc-1) * delta / pow(mean,2) );
 // }
 
+double volume_sp(double r) { return( 4./3. * M_PI * pow(r,3)); }
+double volume_sh(double r1, double r2) { return( 4./3. * M_PI * pow(MAX(r1,r2),3) - pow(MIN(r1,r2),3)); }
+
 statK
 foo(int K) {
 	int i, j, k;
@@ -259,17 +262,14 @@ foo(int K) {
         if( R_max_ind[i] <= K ) 
             continue; 
         F.Nc++; 
+        F.c_sh += m[i][K];
         for( k=0; k<=K; k++ ) {
 			F.c_sp += m[i][k]; 	
         }
-        F.c_sh = m[i][K];
 	}
 	//if( nc == 0 | count == 0 ) return -1; 
 	return F;
 }
-
-double volume_sp(double r) { return( 4./3. * M_PI * pow(r,3)); }
-double volume_sh(double r1, double r2) { return( 4./3. * M_PI * pow(MAX(r1,r2),3) - pow(MIN(r1,r2),3)); }
 
 void
 write_result() {
@@ -291,18 +291,19 @@ write_result() {
     fprintf(foutput, "#\n");
     //foutput = fopen("gamma_2d.dat", "w");
 
-    int HAI = index_grid(10.);
+    //int HAI = index_grid(10.);
     //double HAX = ave_N(HAI) / (4./3.*M_PI*pow(grid[HAI],3));
     statK F;
 	for(k=1; k<grid_n-1; k++) {
         F = foo(k); 
-        if( F.Nc == 0 ) continue; 
+        if( F.c_sp == 0 ) continue; 
 		fprintf(foutput, "%le ", grid[k] ); 
 		fprintf(foutput, "%le ", (double) F.c_sp / F.Nc / volume_sp(grid[k]) ); 
 		fprintf(foutput, "%le ", (double) F.c_sh / F.Nc / volume_sh(grid[k], grid[k+1]) ); 
 		fprintf(foutput, "%d  ", F.c_sp ); 
 		fprintf(foutput, "%d  ", F.c_sh ); 
 		fprintf(foutput, "%d  ", F.Nc ); 
+		fprintf(foutput, "%d  ", ((F.Nc > N/2.) & (grid[k] > closest)) ? 1 : 0 ); 
 		//fprintf(foutput, "%le ", sigma(k) ); 
 		//fprintf(foutput, "%le ", calc_nc(k) / N * 100 ); 
 		//fprintf(foutput, "%le ", ave_N(k) ); 

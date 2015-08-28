@@ -4,12 +4,19 @@ void_centers() {
 	double h, C, S, r; 
 	C = d-D;
 	
+    printf("C = %1.3e\n", C);
 	FOO = (double **) calloc( N, sizeof( double* ) );
 	for(i = 0; i<N; i++) {
 		FOO[i] = (double *) calloc( d+2, sizeof( double ) );
 		for(j=0; j<d; j++) {
-			FOO[i][j] = ((double) rand() / RAND_MAX);
+			FOO[i][j] = (((double) rand() / RAND_MAX));
 		}
+		S = (double) C/(2.0*(i+1));
+		FOO[i][j] = pow(S / alpha, 2.0/d);
+        if( i < 10 ) {
+            printf("%1.4le %1.4le \n", FOO[i][j], sqrt(FOO[i][j]));
+        }
+
 		//S = (double)C/(2.0*(i+500));
 		//S = (double)C/(2.0*(i));
 		/*
@@ -31,19 +38,15 @@ is_it_good(double *point) {
 	int i, j;
 	double C, S, l, r;
 
-	C = d-D;
-
 	for(i=N1; i<N; i++) {
-		S = (double) C/(2.0*(i+1));
 		//S = (double) C/(2.0*(i+1));
 		l = 0; 
 		for(j=0; j<d; j++)
 			l += pow(point[j]-FOO[i][j],2); 
-		l = sqrt(l);
-		r = pow(S / alpha, 1.0/d);
+		//l = sqrt(l);
 		//printf("%lf %lf\n", l, r);
 		//if( l<sqrt(M_PI / S ) )
-		if( l < r ) { // l in sphere
+		if( l < FOO[i][j] ) { // l in sphere
 			//printf("pew\n");
 		//if( fabs(l - r) < (S/(4*M_PI*r)) ) { // l betewin 2 shperas
 		//if( fabs(l - r) < FOO[i][d]) { // l betewin 2 shperas

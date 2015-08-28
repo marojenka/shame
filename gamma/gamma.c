@@ -390,6 +390,7 @@ write_mad() {
         fprintf(foutput, "\n");
     }
     */
+    printf("write mad %s\n", output);
     fprintf(foutput, "%d %d %d %d %d %d ", 0, 0, 0, 0, 0, 0);
     for(k=0; k<grid_n; k++) { fprintf(foutput, "%le ", grid[k]); } fprintf(foutput, "\n"); 
     fprintf(foutput, "%d %d %d %d %d %d ", 0, 0, 0, 0, 0, 0);
@@ -502,9 +503,9 @@ read_data() {
     }
 	n0 = (double) 3. * N / (solid_angle * (pow(R[1],3) - pow(R[0],3)) );
 	printf("%d selected.\n", N);
-	printf("A : %+le %+le -> %+le %+le \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
-	printf("B : %+le %+le -> %+le %+le \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
-	printf("R : %+le %+le -> %+le %+le \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
+	printf("A : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
+	printf("B : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
+	printf("R : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
 	printf("Solid angle : %le\nDensety : %le\n", solid_angle, n0);
 	
     /*

@@ -9,7 +9,7 @@
 double R = 1.0, R2=0.1;
 double d = 2.2, k = 0.01, q=1;
 
-double P, RPOIS = 1e10; 
+double P, R_POIS = 1e10; 
 
 size_t cantor_square(	double x, double y, double z, // Координаты центра нового кубика
 					double h, double lim,  // вероятнось, половина стороны и минимальный размер 
@@ -33,7 +33,7 @@ size_t cantor_square(	double x, double y, double z, // Координаты це
     
     double p_tmp; 
 
-    if( h <= RPOIS ) 
+    if( h <= R_POIS ) 
         p_tmp = P; 
     else
         p_tmp = 1;
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
                 break;
 			
 			case 'S':
-				sscanf(optarg, "%lf", &RPOIS); 
+				sscanf(optarg, "%lf", &R_POIS); 
                 break;
 
             default:
@@ -132,8 +132,9 @@ int main(int argc, char** argv) {
         opt = getopt( argc, argv, optString );
     }
 	
-	printf("generate %s	D=%1.2lf\n", data, d);
+	printf("generate %s	d=%1.2lf\n", data, d);
 	printf("Radius = %lf, R2 = %lf\n", R, R2 );
+    if( R_POIS != 1e10 ) printf("R_POIS == %1.2e", R_POIS); 
 	srand(time(NULL));
 
      struct timeval time; 

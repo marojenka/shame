@@ -20,18 +20,19 @@ int    *R_max_ind; // Rmax compared to grid. grid[R_max_ind] < R_max[i] < grid[R
 
 int grid_n = 800;
 double *grid, grid_h1, grid_R[2] = {1e-3, 1e3}; // grid itseld, h+1 and limits. 
+double H = -1; // in case we want a regular grid change this
 double *max_dist; 
 
 typedef unsigned long long int myint; 
 myint  **m; 
 double *neighbor; 
 
-double A[2] = {0,0}, B[2] = {0, 0}, R[2] = {0, 300};
-double q =1;
+double A[2] = {0, 360}, B[2] = {-90, 90}, R[2] = {0, 300};
+double q = 1;
 double r2d = 180/M_PI, d2r = M_PI / 180;
 double n0, solid_angle;
 
-int index_grid(double r);
+int grid_index(double r);
 typedef struct statK {
     int Nc; 
     myint c_sh, c_sp; 
@@ -68,11 +69,11 @@ int
 inside_sp(double a,double b,double r) {
 	if(r < R[0]) { return 1; }
 	if(r > R[1]) { return 2; }
-    if( A[0] != A[1] ) {
+    if( A[0] != A[1] - 2*M_PI ) {
         if(a < A[0]) { return 3; }
         if(a > A[1]) { return 4; }
     }      
-    if( B[0] != B[1] ) { 
+    if( B[0] != B[1] - M_PI ) { 
 	    if(b < B[0]) { return 5; }
 	    if(b > B[1]) { return 6; }
     }
@@ -138,12 +139,12 @@ count() {
                 // but I can live with that. 
                 if( rd < neighbor[i] ) neighbor[i] = rd;
                 if( rd < neighbor[j] ) neighbor[j] = rd;
-                k = index_grid(rd); // grid[k] < rd < grid[k+1]
+                k = grid_index(rd) + 1; // grid[k] < rd < grid[k+1]
                 // grid[k] < rd < grid[ R_max_ind[i] ] < R_max
-                if( k < R_max_ind[i]) {
+                if( k <= R_max_ind[i]) {
                     m[i][k] ++ ;
                 }
-                if( k < R_max_ind[j]) {
+                if( k <= R_max_ind[j]) {
                     m[j][k] ++ ;
                 }
             }
@@ -269,8 +270,14 @@ count() {
 // 	return (double) ( (double) 1. / (nc-1) * delta / pow(mean,2) );
 // }
 
-double volume_sp(double r) { return( 4./3. * M_PI * pow(r,3)); }
-double volume_sh(double r1, double r2) { return( 4./3. * M_PI * pow(MAX(r1,r2),3) - pow(MIN(r1,r2),3)); }
+double 
+volume_sp(double r) { 
+    return( 4./3. * M_PI * pow(r,3)); 
+}
+double 
+volume_sh(double r1, double r2) { 
+    return( fabs( volume_sp(r1) - volume_sp(r2) ) ); 
+}
 
 statK
 foo(int K) {
@@ -297,30 +304,31 @@ foo(int K) {
         if( R_max_ind[i] < K ) 
             continue; 
         F.Nc++; 
-        F.c_sh += m[i][K-1];
-        for( k=0; k<=K-1; k++ ) {
+        F.c_sh += m[i][K];
+        for( k=0; k<=K; k++ ) {
 			F.c_sp += m[i][k]; 	
         }
 	}
-    if( F.Nc == 0 ) {
-        F.s2_sp = 0; F.s2_sh = 0;
-    } else { 
-        sp_mean = (double) F.c_sp / F.Nc;
-        sh_mean = (double) F.c_sh / F.Nc;
-        for(i=0; i<N; i++) {
-            if( R_max_ind[i] < K ) 
-                continue; 
-            sp = 0;
-            for( k=0; k<=K; k++ ) {
-                sp += m[i][k]; 	
-            }
-            F.s2_sp += pow( sp - sp_mean, 2 ) ;
-            F.s2_sh += pow( m[i][K] - sh_mean , 2);
-        }
-        F.s2_sp = sqrt( (double) 1./(F.Nc - 1) * F.s2_sp  ); 
-        F.s2_sh = sqrt( (double) 1./(F.Nc - 1) * F.s2_sh  ); 
-    }
+    // if( F.Nc == 0 ) {
+    //     F.s2_sp = 0; F.s2_sh = 0;
+    // } else { 
+    //     sp_mean = (double) F.c_sp / F.Nc;
+    //     sh_mean = (double) F.c_sh / F.Nc;
+    //     for(i=0; i<N; i++) {
+    //         if( R_max_ind[i] < K ) 
+    //             continue; 
+    //         sp = 0;
+    //         for( k=0; k<=K; k++ ) {
+    //             sp += m[i][k]; 	
+    //         }
+    //         F.s2_sp += pow( sp - sp_mean, 2 ) ;
+    //         F.s2_sh += pow( m[i][K] - sh_mean , 2);
+    //     }
+    //     F.s2_sp = sqrt( (double) 1./(F.Nc - 1) * F.s2_sp  ); 
+    //     F.s2_sh = sqrt( (double) 1./(F.Nc - 1) * F.s2_sh  ); 
+    // }
 	//if( nc == 0 | count == 0 ) return -1; 
+
 	return F;
 }
 
@@ -344,7 +352,7 @@ write_result() {
     fprintf(foutput, "#\n");
     //foutput = fopen("gamma_2d.dat", "w");
 
-    //int HAI = index_grid(10.);
+    //int HAI = grid_index(10.);
     //double HAX = ave_N(HAI) / (4./3.*M_PI*pow(grid[HAI],3));
     statK F;
 	for(k=1; k<grid_n-1; k++) {
@@ -352,9 +360,9 @@ write_result() {
         if( F.c_sp == 0 ) continue; 
 		fprintf(foutput, "%le ", grid[k] ); 
 		fprintf(foutput, "%le ", (double) F.c_sp / F.Nc / volume_sp(grid[k]) ); 
-		fprintf(foutput, "%le ", (double) F.c_sh / F.Nc / volume_sh(grid[k], grid[k+1]) ); 
+		fprintf(foutput, "%le ", (double) F.c_sh / F.Nc / volume_sh(grid[k-1], grid[k]) );
 		fprintf(foutput, "%le ", (double) F.s2_sp / volume_sp(grid[k]) );             
-		fprintf(foutput, "%le ", (double) F.s2_sh / volume_sh(grid[k], grid[k+1]) );  
+		fprintf(foutput, "%le ", (double) F.s2_sh / volume_sh(grid[k-1], grid[k]) );  
 		fprintf(foutput, "%d  ", F.c_sp ); 
 		fprintf(foutput, "%d  ", F.c_sh ); 
 		fprintf(foutput, "%le ", F.s2_sp ); 
@@ -378,7 +386,7 @@ write_result() {
     for( j=0; j<8; j++ ) {
         sprintf( pdfname, "pdf_%s_%03.0f.dat", name, scales[j] );
         fpdf = fopen(pdfname, "w");
-        k  = index_grid( scales[j] ) ;
+        k  = grid_index( scales[j] ) ;
         for( i=0; i<N; i++ ) {
             if(R_max_ind[i]-1 >= k) {
                 fprintf( fpdf, "%ld \n", (long int) m[i][k] );
@@ -550,20 +558,21 @@ read_data() {
 	fclose(file);
 
     // Parameters of selected objects
-    if( (A[1] == A[0]) & (B[0] == B[1]) ) {
+    if( (A[1] == A[0] + M_PI * 2) & (B[0] == B[1] - M_PI) ) {
         solid_angle = 4 * M_PI;
     } else {
-        if( A[1] == A[0] ) 
+        if( A[1] == A[0] + M_PI * 2 ) 
             solid_angle = 2*M_PI *  (sin(B[1]) - sin(B[0]));
         else 
 	        solid_angle = (A[1] - A[0]) * (sin(B[1]) - sin(B[0]));
     }
 	n0 = (double) 3. * N / (solid_angle * (pow(R[1],3) - pow(R[0],3)) );
 	printf("%d selected.\n", N);
-	printf("A : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
-	printf("B : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
-	printf("R : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
-	printf("Solid angle : %le\nDensety : %le\n", solid_angle, n0);
+	printf("A : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
+	printf("B : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
+	printf("R : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
+	printf("Solid angle :\t % 8.1e (%3.2f%%)\n", solid_angle, solid_angle / (4 * M_PI) * 100);
+    printf("Densety :\t %8.1le (N=%d V=%8.1e)\n", n0, N, solid_angle / 3 * (pow(R[1],3) - pow(R[0],3)) );
 	
     /*
 	sprintf(input_name, "%s_sel.dat", name);
@@ -609,7 +618,7 @@ init_second() {
 	int i,k;
 	R_max     = (double *) calloc(N, sizeof(double));
 	R_max_ind = (int    *) calloc(N, sizeof(int   ));
-	grid = (double *) calloc(grid_n, sizeof(double));
+	// grid = (double *) calloc(grid_n, sizeof(double));
 	max_dist = (double *) calloc(grid_n, sizeof(double));
 	//mass = (double ***) calloc(N, sizeof(double));
 	//for(i=0; i<N; i++) {
@@ -641,28 +650,87 @@ init_second() {
 	*/
 }
 
+// void
+// make_grid() {
+// 	grid_h1 = pow(grid_R[1]/grid_R[0], (double) 1./((double) grid_n - 1));
+// 	grid[0] = grid_R[0]; 
+// 	if(grid[0] == 0) grid[0] = 1e-10;
+// 	int k;
+// 	for( k=1; k<grid_n; k++)	{
+// 		grid[k] = grid[k-1] * grid_h1;
+// 	}	
+// }
+// 
+// int
+// grid_index(double r) {
+//     // i = grid_index(r); grid[i] < r < grid[i+1];
+// 	int i;
+// 	i = (int) (log(r / grid[0] ) / log(grid_h1)); 
+// 	if(i<0) {
+//         printf("grid_index ALARM %lf\n", r);
+//         i = 0;
+//     }
+// 	return i;
+// }
+
 void
-make_grid() {
-	grid_h1 = pow(grid_R[1]/grid_R[0], (double) 1./((double) grid_n - 1));
-	grid[0] = grid_R[0]; 
-	if(grid[0] == 0) grid[0] = 1e-10;
-	int k;
-	for( k=1; k<grid_n; k++)	{
-		grid[k] = grid[k-1] * grid_h1;
-	}	
+grid_make() {
+    int k;
+
+    if( H == -1 ) {
+        grid = (double *) calloc(grid_n, sizeof(double));
+        grid[0] = grid_R[0]; 
+        if(grid[0] == 0) grid[0] = 1e-10;
+        grid_h1 = pow(grid_R[1]/grid_R[0], (double) 1./((double) grid_n - 1));
+        for( k=1; k<grid_n; k++)	{
+            grid[k] = grid[k-1] * grid_h1;
+        }	
+    } else {
+        grid_n = (int) ( grid_R[1] - grid_R[0] ) / H + 1; 
+        grid = (double *) calloc(grid_n, sizeof(double));
+        grid_h1 = H; 
+        grid[0] = grid_R[0]; 
+        for( k=1; k<grid_n; k++ ) {
+            // grid[k] = grid[0] + grid_h1 * k; 
+            grid[k] = grid[k-1] + grid_h1; 
+        }
+    }
 }
 
 int
-index_grid(double r) {
-    // i = index_grid(r); grid[i] < r < grid[i+1];
+grid_index(double r) {
 	int i;
-	i = (int) (log(r / grid[0] ) / log(grid_h1)); 
+    if( H == -1 ) {
+	    i = (int) (log(r / grid[0] ) / log(grid_h1)); 
+    } else {
+        // r = grid[0] + i * grid_h1; 
+        i = (int) (( r - grid[0] ) / grid_h1); 
+    }
 	if(i<0) {
-        printf("index_grid ALARM %lf\n", r);
         i = 0;
+    }
+    if( (i > 1) & (i < grid_n-2) ) {
+        if( (r < grid[i]) | (r > grid[i+1]) ) {
+            printf("PEW %lf\t r = %lf\t %lf\n", grid[i], r, grid[i+1]);
+        }
     }
 	return i;
 }
+
+void
+grid_check(double R) {
+    printf("Check GRID\n");
+    printf("Check GRID\n");
+    printf("Check GRID\n");
+    printf("GRID: %3.3f %3.3f\n", grid[0], grid[grid_n-1]);
+    printf("grid_h1 : %3.3f %d\n", grid_h1, grid_n);
+    int kk; 
+    kk = grid_index( R );
+    printf(" R = %1.3e\n", R);
+    printf(" grid[kk-1] : %lf  grid[kk] : %lf  grid[kk+1] : %lf\n", grid[kk-1], grid[kk], grid[kk+1] );
+    exit(10);
+}
+
 
 void
 print_summ() {
@@ -680,8 +748,8 @@ R_max_find() {
 	double da = 2*M_PI, db = 2*M_PI; 
 	int i; 
 	
-    if( ((A[0] == A[1]) & (B[0] == B[1])) ||
-        ((A[0] == A[1] - 2*M_PI ) & (B[0] == B[1] - M_PI)) )
+    //if( ((A[0] == A[1]) & (B[0] == B[1])) ||
+    if( (A[0] == A[1] - 2*M_PI ) & (B[0] == B[1] - M_PI) ) 
     {
         printf("!! Whole sphere !!\n");
         for(i=0; i<N; i++) {
@@ -690,7 +758,7 @@ R_max_find() {
                 R_max[i] = (R[1] - r);
             else 
 	    	    R_max[i] = MIN(r - R[0], R[1] - r); 
-	    	R_max_ind[i] = index_grid(R_max[i]);
+	    	R_max_ind[i] = grid_index(R_max[i]);
         }
     } else {
 	    for(i=0; i<N; i++) { 
@@ -709,7 +777,7 @@ R_max_find() {
 	    		R_max[i] = MIN(R_max[i], r * sin(db) ); 
 	    	}
 
-	    	R_max_ind[i] = index_grid(R_max[i]);
+	    	R_max_ind[i] = grid_index(R_max[i]);
 	    	if(R_max[i] == 0) {
 	    		printf("Rmax == 0; %lf %lf %lf\n", a, b, r);
 	    	}
@@ -801,7 +869,7 @@ SL() {
     for( scale_index = 0; scale_index < scale_n; scale_index++ ) {
 	    sprintf(filename_sl, "%s_SL_%03f.dat", name, scale[scale_index]);
         FILE * file = fopen(filename_sl, "w");
-        k = index_grid( scale[scale_index] ); 
+        k = grid_index( scale[scale_index] ); 
         for( i=0; i<N; i++ ) {
             if( R_max_ind[i]-1 >= k ) {
                 fprintf( file, "%le %d\n", P[i][2], (int) m[i][k] ); 
@@ -812,34 +880,21 @@ SL() {
 }
 
 void
-ololo() {
-    int i,j,k;
-    for( i=0; i<N; i++ ) {
-        if( grid[R_max_ind[i]] > R_max[i] ) 
-            printf("FUCK #1 %d\t%e\t%e\t%e\n", i, grid[R_max_ind[i]],  R_max[i], grid[R_max_ind[i]+1]);
-        if( grid[R_max_ind[i]+1] < R_max[i] ) 
-            printf("FUCK #2 %d\n", i);
-    }
-}
-
-void
 gogogo() {
 	init_begining();
+	grid_make();
 	read_data();
 	init_second();
-	make_grid();
-		//int k = index_grid(10.); 
-		//printf("%lf %lf %lf\n", grid[k-1], grid[k], grid[k+1] );
-		//exit(0);
-	print_summ();
+    // grid_check(2);
+	// print_summ();
 	R_max_find();
 	//write_geom();
 	//R_max_check();
 	count(); 
 	write_result(); 
-	write_mad(); 
-    int k=index_grid(1); 
-    printf("%1.3f\t%1.3f\t%1.3f\t%d\n", grid[k-1], grid[k], grid[k+1], index_grid(grid[k]));
+	// write_mad(); 
+    //int k=grid_index(1); 
+    //printf("%1.3f\t%1.3f\t%1.3f\t%d\n", grid[k-1], grid[k], grid[k+1], grid_index(grid[k]));
 	//hist( R_max, N, 1, "rmax_hist.dat" );
 	//double foo[10] = {-1,-1,-1,-2,-1,4,0,1,1,1};
 	//hist( foo, 10, ( max(foo, 10) - min(foo, 10) ) / 5, "rmax_hist.dat" );
@@ -849,7 +904,7 @@ gogogo() {
 }
 
 int main( int argc, char *argv[] ) {
-	char optString[] = {"d:N:g:n:h:a:b:r:q:o:c"};
+	char optString[] = {"d:N:g:n:h:a:b:r:q:o:cH:"};
 	int opt, got_out = 0; 
 	opt = getopt( argc, argv, optString );
 	while( opt != -1 ) {
@@ -886,6 +941,10 @@ int main( int argc, char *argv[] ) {
 				break ;
 			case 'q': 
 				sscanf(optarg, "%lf", &q); 
+				//sscanf(optarg, "%lf", %q);
+				break;
+			case 'H': 
+				sscanf(optarg, "%lf", &H); 
 				//sscanf(optarg, "%lf", %q);
 				break;
 			case 'o':

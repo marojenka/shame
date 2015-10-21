@@ -284,7 +284,7 @@ write_cyl(cyl *foo, char* name_out) {
     //     // if( foo->R_max_ind[i] < k ) continue; 
     //     count[i] = foo->m[i][0];
     // }
-    for( k = grid_index(h)+1; k<grid_n-1; k++ ) {
+    for( k = 0; k<grid_n-1; k++ ) {
         Nc = 0; 
         sum   = 0;
         dcount = 0;
@@ -418,27 +418,14 @@ read_data() {
 	}
 	fclose(file);
 
-    // Parameters of selected objects
-    //if( (A[1] == A[0]) & (B[0] == B[1]) ) {
-    //    solid_angle = 4 * M_PI;
-    //    A[1] = 2*M_PI;
-    //    B[0] = -M_PI/2; B[1] = M_PI/2;
-    //} else {
-    //    if( A[1] == A[0] ) {
-    //        solid_angle = 2*M_PI *  (sin(B[1]) - sin(B[0]));
-    //        A[1] = 2*M_PI;
-    //    }
-    //    else {
-	//        solid_angle = (A[1] - A[0]) * (sin(B[1]) - sin(B[0]));
-    //    }
-    //}
 	solid_angle = (A[1] - A[0]) * (sin(B[1]) - sin(B[0]));
 	n0 = (double) 3. * N / (solid_angle * (pow(R[1],3) - pow(R[0],3)) );
 	printf("%d selected.\n", N);
-	printf("A : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
-	printf("B : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
-	printf("R : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
-	printf("Solid angle : %1.3le\nDensety : %1.3le\n", solid_angle, n0);
+	printf("A : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", alim[0]*r2d, alim[1]*r2d, A[0]*r2d, A[1]*r2d );
+	printf("B : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", blim[0]*r2d, blim[1]*r2d, B[0]*r2d, B[1]*r2d );
+	printf("R : % 8.1f % 8.1f -> % 8.1f % 8.1f \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
+	printf("Solid angle :\t % 8.1e (%3.2f%%)\n", solid_angle, solid_angle / (4 * M_PI) * 100);
+    printf("Densety :\t %8.1le (N=%d V=%8.1e)\n", n0, N, solid_angle / 3 * (pow(R[1],3) - pow(R[0],3)) );
 	
     if( q < 1 ) {
         sprintf(input_name, "%s_sel.dat", name);

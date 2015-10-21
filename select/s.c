@@ -72,14 +72,14 @@ read_data() {
 	sprintf(input_name, "%s.dat", input_suff);
 	finput = fopen(input_name, "r");
 	if( finput == NULL ) {
-		printf("Can't find file %s.\n", input_name);
+		printf("Can't find file %s\n", input_name);
 		exit(10);
 	}
 
 	sprintf(output_name, "%s", output_suff);
 	foutput = fopen(output_name, "w");
 	if( foutput == NULL ) {
-		printf("Can't open file %s.\n", output_name);
+		printf("Can't create file %s\n", output_name);
 		exit(10);
 	}
     printf("%s -> %s\n", input_name, output_name);

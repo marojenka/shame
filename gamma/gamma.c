@@ -107,26 +107,46 @@ void
 count() {
 	int i, j, k;
 	double rd;
-	for(i=0; i<N; i++) {
-	    //printf("\ri=%d\t%d%%", i, (int) 100 * i / N );
-        printf("\r%d%%", (int) 100 * i / N );
-		for(j=i+1; j<N; j++) {
-            rd = sqrt(pow(p[i][0]-p[j][0],2)+pow(p[i][1]-p[j][1],2)+pow(p[i][2]-p[j][2],2)); 
-			if( rd < neighbor[i] ) neighbor[i] = rd;
-			if( rd < neighbor[j] ) neighbor[j] = rd;
-            k = index_grid(rd); // grid[k] < rd < grid[k+1]
+    double x,   y,  z;
+    double dx, dy, dz;
+    double tmp_rmax;
 
-            if( k < R_max_ind[i]) {
-                m[i][k] ++ ;
-				//add(i, j, k ); 
+	for(i=0; i<N; i++) {
+        printf("\r%d%%", (int) 100 * i / N );
+        x = p[i][0]; 
+        y = p[i][1]; 
+        z = p[i][2]; 
+		for(j=i+1; j<N; j++) {
+            // find a biggest R_max 
+            if( R_max[i] > R_max[j] ) {
+                tmp_rmax = R_max[i]; 
+            } else {
+                tmp_rmax = R_max[j]; 
             }
-			if( k < R_max_ind[j]) {
-                m[j][k] ++ ;
-				//add(j, i, k ); 
+            dx = fabs(x - p[j][0]);
+            dy = fabs(y - p[j][1]);
+            dz = fabs(z - p[j][2]);
+            if( ( dx > tmp_rmax ) | 
+                ( dy > tmp_rmax ) | 
+                ( dz > tmp_rmax )   ) {
+                // if points are out of box with side 2*(R_max[i],R_max[j])
+                // then distance between them clearly is bigger than R_max.
+                continue;
+            } else {
+                rd = sqrt( dx*dx + dy*dy + dz*dz ); 
+                // estimation of neighbor can be biased, 
+                // but I can live with that. 
+                if( rd < neighbor[i] ) neighbor[i] = rd;
+                if( rd < neighbor[j] ) neighbor[j] = rd;
+                k = index_grid(rd); // grid[k] < rd < grid[k+1]
+                // grid[k] < rd < grid[ R_max_ind[i] ] < R_max
+                if( k < R_max_ind[i]) {
+                    m[i][k] ++ ;
+                }
+                if( k < R_max_ind[j]) {
+                    m[j][k] ++ ;
+                }
             }
-            // if( (rd < R_max[i]) & (rd < R_max[j]) ) {
-            // update_max_dist(i, j, k, rd);
-            // }
 		}
 	}
 	printf("\n");
@@ -273,11 +293,12 @@ foo(int K) {
     // либо с.к.в. из дисперсии числа точек в тестовых сферах,
     // либо dN/N = 1/(N)^1/2
 	for(i=0; i<N; i++) {
-        if( R_max_ind[i] <= K ) 
+        // grid[k] < grid[ R_max_ind[i] ] < R_max[i] 
+        if( R_max_ind[i] < K ) 
             continue; 
         F.Nc++; 
-        F.c_sh += m[i][K];
-        for( k=0; k<=K; k++ ) {
+        F.c_sh += m[i][K-1];
+        for( k=0; k<=K-1; k++ ) {
 			F.c_sp += m[i][k]; 	
         }
 	}
@@ -287,7 +308,7 @@ foo(int K) {
         sp_mean = (double) F.c_sp / F.Nc;
         sh_mean = (double) F.c_sh / F.Nc;
         for(i=0; i<N; i++) {
-            if( R_max_ind[i] <= K ) 
+            if( R_max_ind[i] < K ) 
                 continue; 
             sp = 0;
             for( k=0; k<=K; k++ ) {
@@ -633,6 +654,7 @@ make_grid() {
 
 int
 index_grid(double r) {
+    // i = index_grid(r); grid[i] < r < grid[i+1];
 	int i;
 	i = (int) (log(r / grid[0] ) / log(grid_h1)); 
 	if(i<0) {
@@ -658,7 +680,6 @@ R_max_find() {
 	double da = 2*M_PI, db = 2*M_PI; 
 	int i; 
 	
-	//printf("%d\n", N);
     if( ((A[0] == A[1]) & (B[0] == B[1])) ||
         ((A[0] == A[1] - 2*M_PI ) & (B[0] == B[1] - M_PI)) )
     {
@@ -673,30 +694,19 @@ R_max_find() {
         }
     } else {
 	    for(i=0; i<N; i++) { 
-	    	//i = 4; {
 	    	spherical_coordinats(1, &p[i][0], &p[i][1], &p[i][2], &a, &b, &r);
-	    	//printf("%lf %lf %lf\n", a*180/M_PI, b*180/M_PI, r);
 	    	da = 2*M_PI, db = 2*M_PI;
 	    	if( (A[0] != A[1] - 2*M_PI) &
                 (A[0] != A[1])  ) {
 	    		da = MIN(a - A[0], A[1] - a); 
 	    	}
-	    	//if( B[0] != -M_PI/2 ) { 
-	    		db = b - B[0];
-	    	//}	
-	    	//if( B[1] != M_PI/2 ) {
-	    		db = MIN(db, B[1] - b);
-	    	//}	
-	    	//printf("da = %lf db = %lf\n", da*180/M_PI, db*180/M_PI);
+	    	db = MIN(b - B[0], B[1] - b);
 	    	R_max[i] = MIN(r - R[0], R[1] - r); 
-	    	//R_max_ind[i] = 1; 
 	    	if( da <= M_PI/2 ) {
 	    		R_max[i] = MIN(R_max[i], r * cos(b) * sin( da )) ; 
-	    		//if(R_max[i] == r * cos(b) * sin(da)) R_max_ind[i] = 2; 
 	    	}
 	    	if( db <= M_PI/2 ) {
 	    		R_max[i] = MIN(R_max[i], r * sin(db) ); 
-	    		//if(R_max[i] == r * sin(db)) R_max_ind[i] = 3; 
 	    	}
 
 	    	R_max_ind[i] = index_grid(R_max[i]);
@@ -707,7 +717,6 @@ R_max_find() {
 	    	if(R_max[i] < 0) {
 	    		printf("Rmax <0; %lf %lf %lf\n", a, b, r);
 	    	}
-	    	//printf("%lf %d\n\n", R_max[i], R_max_ind[i]);
 	    }	
     }
 }

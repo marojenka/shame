@@ -12,7 +12,7 @@
 int SELECT_COORDINATES = 0; // CARTESIAN
 int FULL_SPHERE = 0; // is it a full sphere? 
 
-char *input_suff, *name, *output; 
+char *input_suff, *name, *prefix,  *output_par, *output_ort; 
 int N; // how many points
 double **p;  // Array of points. p[i][N]
 double **P;  // Array of points. p[i][N]
@@ -21,6 +21,7 @@ int    *R_max_ind; // Rmax compared to grid. grid[R_max_ind] < R_max[i] < grid[R
 
 int grid_n = 200;
 double *grid, grid_h1, grid_R[2] = {1e-3, 1e3}; // grid itseld, h+1 and limits. 
+double H = -1; 
 
 typedef unsigned long long int myint; 
 myint  **m_par, **m_ort; 
@@ -109,28 +110,17 @@ scalar_product(double *a, double *b) {
 void
 count() {
 	int i, j, k;
+    int index;
 	double rd;
     double e[3], eo[3], v[3];
-    double r1, r2, r;
+    double r1, r2, r3, r;
     double l, h2, l2;
 
 	for(i=0; i<N; i++) {
-        if( cyl_par.R_max[i] == -1 ) continue;
+        if( inside_sp(P[i][0], P[i][1], P[i][2]) != 0  ) continue; 
 	    printf("\ri=%d\t%d%%", i, (int) 100 * i / N );
-    //{ i = 0;
-    //    double min = 3000;
-    //    double max = 0;
-    //    for( i=0; i<N; i++ ) {
-    //        if( max < cyl_par.R_max[i] ) {
-    //            max = cyl_par.R_max[i];
-    //            k = i;
-    //        }
-    //    }
-    //    i = k;
-    //    printf("\nTEST i=%d [xyz] = [%lf %lf %lf]\n", i, p[i][0], p[i][1], p[i][2]);
-    //    printf("TEST Rmax = %lf\n", cyl_par.R_max[i]);
-    //    FILE *FF;
-    //    FF = fopen("foo.dat", "w");
+        if( cyl_par.R_max[i] == -1 ) continue; 
+        if( cyl_ort.R_max[i] == -1 ) continue; 
 
         r = P[i][2];
         if( r == 0 ) {
@@ -145,50 +135,36 @@ count() {
         eo[2] =   0;
         r1 = r - cyl_par.R_max[i];
         r2 = r + cyl_par.R_max[i];
+        r3 = cyl_ort.R_max[i];
             
-        // fprintf(FF, "%lf %lf %lf %lf\n", p[i][0] , p[i][1], p[i][2], 0.00);
 		for(j=0; j<N; j++) {
             if( i == j ) continue; 
 
             l  = scalar_product(p[j], e);
             h2 = sqrt( P[j][2]*P[j][2] - l*l );
-            if( h2 > h ) continue; 
-            if( (l < r1)|(l>r2) ) continue;  
-            
-            if( l > r ) 
-                l = l - r;
-            else 
-                l = r - l;
-
-            // l2 = sqrt( pow( p[i][0] - p[j][0], 2) + 
-            //            pow( p[i][1] - p[j][1], 2) +
-            //            pow( p[i][2] - p[j][2], 2) );
-            // if( fabs(sqrt(l*l + h2*h2) - l2) > 1 ) 
-            //     printf("%lf %lf %lf\n", l2, h2, l );
-
-            // fprintf(FF, "%lf %lf %lf %lf\n", p[j][0] , p[j][1], p[j][2], l);
-            // fprintf(FF, "%lf %lf %lf %lf\n", p[j][0] - p[i][0], p[j][1] - p[i][1], p[j][2] - p[i][2], l);
-
-            cyl_par.m[i][ grid_index( l ) ] ++;
+            if( ( h2 < h ) & (l > r1)&(l < r2) ) {
+                if( l > r ) 
+                    l = l - r;
+                else 
+                    l = r - l;
+                index = MAX(0, grid_index( l ) + 1 );
+                cyl_par.m[i][ index ] ++;
+            }
             
             // oort 
             v[0] = p[j][0] - p[i][0]; 
             v[1] = p[j][1] - p[i][1]; 
             v[2] = p[j][2] - p[i][2]; 
-            l  = scalar_product( v, eo );
-            h2 = sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - l*l );
-            if( h2 > h ) continue; 
-            if( (l < r1)|(l>r2) ) continue;  
-            
-            if( l > r ) 
-                l = l - r;
-            else 
-                l = r - l;
 
-            cyl_ort.m[i][ grid_index( l ) ] ++;
-
+            l  = fabs( scalar_product( v, eo ) );
+            if( l < r3 )  { 
+                h2 = sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2] - l*l );
+                if( h2 < h ) { 
+                    index = MAX(0, grid_index( l ) + 1 );
+                    cyl_ort.m[i][ index ] ++;
+                }
+            }
 		}
-        // fclose( FF );
 	}
 	printf("\n");
 }
@@ -255,14 +231,14 @@ foo(int K) {
 */
 
 void
-write_result() {
+write_cyl(cyl *foo, char* name_out) {
 	FILE *foutput; 
-	int k, i; 
+	int k, i, K; 
     
     double closest = 0;
 
-    printf("write to %s\n", output); 
-	foutput = fopen(output, "w");
+    printf("write to %s\n", name_out); 
+	foutput = fopen(name_out, "w");
     fprintf(foutput, "# %s %5f %5f %5f %5f %5f %5f\n", name, A[0], A[1], B[0], B[1], R[0], R[1]);
     fprintf(foutput, "# %10s %10s %10s\n","N",  "dens", "h");
     fprintf(foutput, "# %10d %10f %2.2f\n", N, n0, h);
@@ -271,56 +247,85 @@ write_result() {
         double min = 3000;
         double max = 0;
         int max_ind; 
+        int boo, max_boo = 0, max_boo_ind = 0; 
         for( i=0; i<N; i++ ) {
-            if( max < cyl_par.R_max[i] ) {
-                max = cyl_par.R_max[i];
+            if( max < foo->R_max[i] ) {
+                max = foo->R_max[i];
                 k = i;
+            }
+            boo = 0;
+            for( k=0; k<grid_n; k++ ) {
+                boo += foo->m[i][k]; 
+            }
+            if( max_boo < boo ) {
+                max_boo = boo; 
+                max_boo_ind = i; 
             }
         }
         max_ind = k;
         printf("i = %d R_max = %lf\n", max_ind, max);
+        printf("i = %d boo = %d\n", max_boo_ind, max_boo);
 
 
     double mean;
+    double mean2;
+    int Nc2;
     int Nc = 0; 
     // double count = 0;
     int *count;
+    int dcount;
+    int sum; 
+    double dn;
+
     count = (int *) calloc(N, sizeof(int));
 
-    k = 1;
-    for( i=0; i<N; i++ ) {
-        count[i] = cyl_par.m[i][0];
-    }
-    for( k=2; k<grid_n-1; k++ ) {
+    // k = 0;
+    // for( i=0; i<N; i++ ) {
+    //     // if( foo->R_max_ind[i] < k ) continue; 
+    //     count[i] = foo->m[i][0];
+    // }
+    for( k = grid_index(h)+1; k<grid_n-1; k++ ) {
         Nc = 0; 
-        mean = 0;
+        sum   = 0;
+        dcount = 0;
+        Nc2 = 0;
         for( i=0; i<N; i++ ) {
-            if( cyl_par.R_max_ind[i] < k ) continue; 
-            
-            count[i] += cyl_par.m[i][k-1]; 
-            mean += count[i];
+            if( foo->R_max[i] <= grid[k] ) continue; 
+ 
+            count[i] += foo->m[i][k]; 
+            dcount   += foo->m[i][k];
+            sum += count[i];
             Nc++;
+            if( foo->m[i][k] != 0 ) Nc2++;
         }
-        if( mean == 0 ) continue;
         if( Nc != 0 ) 
-            mean  /=  Nc;
-        else 
+            mean  =  (double) sum / Nc;
+        else {
             continue;
-
+        }
+        if( sum == 0 ) { 
+            continue;
+        }
+        
         // mean = count[0];
         
         fprintf(foutput, "%1.10le ", grid[k]);
         fprintf(foutput, "%1.10le ", mean / (M_PI *2* grid[k] * h*h));
-        fprintf(foutput, "%d ", Nc );
-        fprintf(foutput, "%d ", count[max_ind] );
-        fprintf(foutput, "%1.10le ", mean );
+        fprintf(foutput, "%1.10le ", (double) dcount / Nc /(M_PI *2* (grid[k]-grid[k-1]) * h*h) );
+        fprintf(foutput, "%f ", 100*((double) Nc/N) );
+        fprintf(foutput, "%d ", foo->m[max_boo_ind][k] );
+        fprintf(foutput, "%d ", sum );
+        fprintf(foutput, "%d ", dcount );
+        fprintf(foutput, "%lf ", mean );
+        fprintf(foutput, "%lf ", (double) Nc2 != 0 ? sum / Nc2 : -1);
         fprintf(foutput, "\n");
     }
     fclose( foutput );
+    free(count);
 
     // foutput = fopen("rmax.dat", "w");
     // for( i=0; i<N; i++ ) {
-    //     fprintf(foutput, "%le %le %le %le\n", p[i][0], p[i][1], p[i][2], cyl_par.R_max[i]);   
+    //     fprintf(foutput, "%le %le %le %le\n", p[i][0], p[i][1], p[i][2], foo->R_max[i]);   
     // }
     // fclose( foutput );
 
@@ -351,22 +356,21 @@ write_result() {
 	// 	fprintf(foutput, "\n");
 	// }
 	// fclose(foutput);
+}
 
-    foutput = fopen("pew.dat", "w");
-    fprintf(foutput, "# %le ",0.0);
+
+void
+write_rmax() {
+    int i;
+    FILE *foutput;
+    char xyz_rmax[80];
+
+    sprintf(xyz_rmax, "%s_rmax.dat", name );
+    foutput = fopen(xyz_rmax, "w");
+
     for( i=0; i<N; i++ ) {
-        if( cyl_par.R_max[i] < 50 ) continue; 
-        fprintf(foutput, " %lf ", cyl_par.R_max[i]);
-    }
-
-    for( k=0; k<grid_n; k++ ) {
-        //fprintf(foutput, "%le %le %le ", p[i][0], p[i][1], p[i][2]);
-        fprintf(foutput, "%le ", grid[k]);
-        for( i=0; i<N; i++ ) {
-            if( cyl_par.R_max[i] < 50 ) continue; 
-            fprintf(foutput, " %d ", cyl_par.m[i][k]);
-        }
-        fprintf(foutput, "\n");
+        if( ((double) rand() / RAND_MAX) < .3 ) continue; 
+        fprintf(foutput, "%le %le %le %le %le \n", p[i][0], p[i][1], p[i][2], cyl_par.R_max[i], cyl_ort.R_max[i]);
     }
     fclose( foutput );
 }
@@ -436,24 +440,14 @@ read_data() {
 	printf("R : %+3.3lf %+3.3lf -> %+3.3lf %+3.3lf \n", rlim[0]    , rlim[1]    , R[0]    , R[1]     );
 	printf("Solid angle : %1.3le\nDensety : %1.3le\n", solid_angle, n0);
 	
-    /*
-	sprintf(input_name, "%s_sel.dat", name);
-	file = fopen(input_name, "w"); 
-	for(i=0; i<N; i++) {
-		fprintf(file, "%lf %lf %lf %lf %lf %lf\n", p[i][0],  p[i][1], p[i][2], P[i][0],  P[i][1], P[i][2]);
-		//fprintf(file, "%lf %lf %lf\n", P[i][0],  P[i][1], P[i][2]);
-	}
-	fclose(file);
-    */
-	/*
-	sprintf(input_name, "%s_c2.dat", name);
-	file = fopen(input_name, "w"); 
-	for(i=0; i<N; i++) {
-		//fprintf(file, "%lf %lf %lf %lf %lf %lf\n", p[i][0],  p[i][1], p[i][2], P[i][0],  P[i][1], P[i][2]);
-		fprintf(file, "%lf %lf %lf\n", p[i][0],  p[i][1], p[i][2]);
-	}
-	fclose(file);
-	*/	
+    if( q < 1 ) {
+        sprintf(input_name, "%s_sel.dat", name);
+        file = fopen(input_name, "w"); 
+        for(i=0; i<N; i++) {
+            fprintf(file, "%lf %lf %lf\n", p[i][0],  p[i][1], p[i][2]);
+        }
+        fclose(file);
+    }
 }
 
 void
@@ -495,31 +489,61 @@ init_cyl(cyl *foo) {
 void
 init_second() {
 	int i,k;
-    grid = (double *) calloc(grid_n, sizeof(double));
     init_cyl(&cyl_par);
     init_cyl(&cyl_ort);
 }
 
 void
 grid_make() {
-	grid_h1 = pow(grid_R[1]/grid_R[0], (double) 1./((double) grid_n - 1));
-	grid[0] = grid_R[0]; 
-	if(grid[0] == 0) grid[0] = 1e-10;
-	int k;
-	for( k=1; k<grid_n; k++)	{
-		grid[k] = grid[k-1] * grid_h1;
-	}	
+    int k;
+
+    if( H == -1 ) {
+        grid = (double *) calloc(grid_n, sizeof(double));
+        grid[0] = grid_R[0]; 
+        if(grid[0] == 0) grid[0] = 1e-10;
+        grid_h1 = pow(grid_R[1]/grid_R[0], (double) 1./((double) grid_n - 1));
+        for( k=1; k<grid_n; k++)	{
+            grid[k] = grid[k-1] * grid_h1;
+        }	
+    } else {
+        grid_n = (int) ( grid_R[1] - grid_R[0] ) / H + 1; 
+        grid = (double *) calloc(grid_n, sizeof(double));
+        grid_h1 = H; 
+        grid[0] = grid_R[0]; 
+        for( k=1; k<grid_n; k++ ) {
+            // grid[k] = grid[0] + grid_h1 * k; 
+            grid[k] = grid[k-1] + grid_h1; 
+        }
+    }
 }
 
 int
 grid_index(double r) {
 	int i;
-	i = (int) (log(r / grid[0] ) / log(grid_h1)); 
+    if( H == -1 ) {
+	    i = (int) (log(r / grid[0] ) / log(grid_h1)); 
+    } else {
+        // r = grid[0] + i * grid_h1; 
+        i = (int) ( r - grid[0] ) / grid_h1; 
+    }
 	if(i<0) {
-        // printf("index_grid ALARM %lf\n", r);
         i = 0;
     }
 	return i;
+}
+
+void
+grid_check(double R) {
+    printf("Check GRID\n");
+    printf("Check GRID\n");
+    printf("Check GRID\n");
+    printf("GRID: %3.3f %3.3f\n", grid[0], grid[grid_n-1]);
+    printf("grid_h1 : %3.3f %d\n", grid_h1, grid_n);
+    int kk; 
+    kk = grid_index( R );
+    printf(" R = %1.3e\n", R);
+    printf(" grid[kk-1] : %lf  grid[kk] : %lf  grid[kk+1] : %lf\n", grid[kk-1], grid[kk], grid[kk+1] );
+    exit(10);
 }
 
 double
@@ -543,13 +567,13 @@ rmax(double x, double y, double z) {
             else 
 	    	    R_max = MIN(r - R[0], R[1] - r); 
     } else {
-	    da = 2*M_PI, db = 2*M_PI;
+	    da = 2*M_PI;
+        db = 2*M_PI;
 	    if( (A[0] != A[1] - 2*M_PI) &
             (A[0] != A[1])  ) {
 	    	da = MIN(a - A[0], A[1] - a); 
 	    }
-	    db = b - B[0];
-	    db = MIN(db, B[1] - b);
+	    db = MIN(b - B[0], B[1] - b);
 	    R_max = MIN(r - R[0], R[1] - r); 
 	    if( da <= M_PI/2 ) {
 	    	R_max = MIN(R_max, r * cos(b) * sin( da )) ; 
@@ -585,79 +609,89 @@ R_max_find_par() {
 
 	double da = 2*M_PI, db = 2*M_PI; 
     for( i=0; i<N; i++ ) {
-        r1 = sqrt(R[1]*R[1] - h*h);
-        r2 = R[0]; 
-        if( FULL_SPHERE == 0 ) {
-            // so we have limits in ra and dec
-			da = 2*M_PI, db = 2*M_PI;
-			if( A[0] != A[1] - 2*M_PI) {
-				da = MIN(P[i][0] - A[0], A[1] - P[i][0]); 
-			}
-			db = MIN(P[i][1] - B[0], B[1] - P[i][1]); 
-			if( da < M_PI/2 ) 
-				r2 = MAX(r2, h/(sin(da)*cos(P[i][1]))) ; 
-			if( db < M_PI/2 ) 
-				r2 = MAX(r2, h/tan(db) ); 
-		
-			if( (r2>=P[i][2])||(P[i][2]>r1) ) {
-				cyl_par.R_max[i] = -1; 
-                cyl_par.R_max_ind[i] = 0;
-			} else { 
-				cyl_par.R_max[i]     = MIN(P[i][2] - r2, r1 - P[i][2]); 
-                cyl_par.R_max_ind[i] = grid_index(cyl_par.R_max[i]);
-			}
-		} else {
-            // if there is no limit in ra and dec
-            if( r2 == 0 ) 
-                cyl_par.R_max[i]     = r1 - P[i][2]; 
-            else 
-			    cyl_par.R_max[i]     = MIN(P[i][2] - r2, r1 - P[i][2]); 
-            cyl_par.R_max_ind[i] = grid_index(cyl_par.R_max[i]);
-        }
-    }
-    //    K = 0;
-    //    for( k=0; k<grid_n; k++ ) {
-    //        r = P[i][2] + grid[k];
-    //        cartesian_coordinats(1, &x, &y, &z, &P[i][0], &P[i][1], &r);
-    //        r1 = rmax(x, y, z);
-    //        //if( r1 < h ) break;
-    //        r = P[i][2] - grid[k];
-    //        a = P[i][0]; b = P[i][1];
-    //        if( r < 0 ) {
-    //            a = a + M_PI; 
-    //            b = - b;
-    //            r = - r;
-    //        }
-    //        cartesian_coordinats(1, &x, &y, &z, &a, &b, &r);
-    //        r2 = rmax(x, y, z);
-    //        // printf("[r+dr, r-dr] = [%lf, %lf] : r1 = %lf\tr2 = %lf\n", P[i][2] + grid[k], P[i][2] - grid[k], r1, r2);
-    //        if( r2 < h ) break;
-    //        if( r1 < h ) break;
-    //        K = k;
+    //    r1 = sqrt(R[1]*R[1] - h*h);
+    //    r2 = R[0]; 
+    //    if( FULL_SPHERE == 0 ) {
+    //        // so we have limits in ra and dec
+	//		da = 2*M_PI, db = 2*M_PI;
+	//		if( A[0] != A[1] - 2*M_PI) {
+	//			da = MIN(P[i][0] - A[0], A[1] - P[i][0]); 
+	//		}
+	//		db = MIN(P[i][1] - B[0], B[1] - P[i][1]); 
+	//		if( da < M_PI/2 ) 
+	//			r2 = MAX(r2, h/(sin(da)*cos(P[i][1]))) ; 
+	//		if( db < M_PI/2 ) 
+	//			r2 = MAX(r2, h/tan(db) ); 
+	//	
+	//		if( (r2>=P[i][2])||(P[i][2]>r1) ) {
+	//			cyl_par.R_max[i] = -1; 
+    //            cyl_par.R_max_ind[i] = 0;
+	//		} else { 
+	//			cyl_par.R_max[i]     = MIN(P[i][2] - r2, r1 - P[i][2]); 
+    //            cyl_par.R_max_ind[i] = grid_index(cyl_par.R_max[i]);
+	//		}
+	//	} else {
+    //        // if there is no limit in ra and dec
+    //        if( r2 == 0 ) 
+    //            cyl_par.R_max[i]     = r1 - P[i][2]; 
+    //        else 
+	//		    cyl_par.R_max[i]     = MIN(P[i][2] - r2, r1 - P[i][2]); 
+    //        cyl_par.R_max_ind[i] = grid_index(cyl_par.R_max[i]);
     //    }
-    //    cyl_par.R_max_ind[i] = K;
-    //    cyl_par.R_max[i] = grid[K];
-    //  }
+    //}
+        K = -1;
+        for( k=0; k<grid_n; k++ ) {
+            r = P[i][2] + grid[k];
+            cartesian_coordinats(1, &x, &y, &z, &P[i][0], &P[i][1], &r);
+            r1 = rmax(x, y, z);
+            //if( r1 < h ) break;
+            r = P[i][2] - grid[k];
+            a = P[i][0]; b = P[i][1];
+            if( r < 0 ) {
+                a = a + M_PI; 
+                b = - b;
+                r = - r;
+            }
+            cartesian_coordinats(1, &x, &y, &z, &a, &b, &r);
+            r2 = rmax(x, y, z);
+            if( r1 < h ) break;
+            if( r2 < h ) break;
+            K = k;
+        }
+        if( K == -1 ) {
+            cyl_par.R_max[i] = -1; 
+            K = 0; 
+        } else {
+            cyl_par.R_max[i] = grid[K];
+        }
+        cyl_par.R_max_ind[i] = K;
+      }
 }
 
 void
 R_max_find_ort() {
     double r1, r2;
-    double e[3];
+    double e[3], er;
     double x,y,z,a,b,r;
     double l;
     int i, k, K;
-
+    
     for( i=0; i<N; i++ ) {
         K = 0;
-        e[0] = -p[i][1]; e[1] = p[i][0]; e[2] = 0;
+        er = sqrt( p[i][1]*p[i][1] + p[i][0]*p[i][0] ); 
+        e[0] = -p[i][1] / er;
+        e[1] =  p[i][0] / er; 
+        e[2] = 0;
         for( k=0; k<grid_n; k++ ) {
             // r = P[i][2] + grid[k];
             // cartesian_coordinats(1, &x, &y, &z, &P[i][0], &P[i][1], &r);
             z = p[i][2];
-            x = p[i][0] + e[0]; y = p[i][1] + e[1]; 
+
+            x = p[i][0] + e[0] * grid[k]; 
+            y = p[i][1] + e[1] * grid[k]; 
             r1 = rmax(x, y, z);
-            x = p[i][0] - e[0]; y = p[i][1] - e[1]; 
+            x = p[i][0] - e[0] * grid[k]; 
+            y = p[i][1] - e[1] * grid[k]; 
             r2 = rmax(x, y, z);
 
             if( r2 < h ) break;
@@ -783,30 +817,54 @@ _gogogo() {
 	read_data();
 	init_second();
 	grid_make();
-	//print_summ();
+    // grid_check(10.); 
+    // A[0] = 10*M_PI/180;
+    // A[1] = 60*M_PI/180;
+    // B[0] = 10*M_PI/180;
+    // B[1] = 60*M_PI/180;
+    // R[0] = 10;
+    // R[1] = 250;
+    
+    ////
 	R_max_find_par();
-    //int i = 2725;
-    //printf("%d\n" , cyl_par.R_max_ind[i]);
-    //printf("%lf\n", cyl_par.R_max[i]);
-    //printf("%d\n", grid_index(cyl_par.R_max[i]));
-
-	//write_geom();
-	//R_max_check();
+	R_max_find_ort();
 	count(); 
-	write_result(); 
-	//write_mad(); 
-    //int k=index_grid(1); 
-    //printf("%1.3f\t%1.3f\t%1.3f\t%d\n", grid[k-1], grid[k], grid[k+1], index_grid(grid[k]));
-	//hist( R_max, N, 1, "rmax_hist.dat" );
-	//double foo[10] = {-1,-1,-1,-2,-1,4,0,1,1,1};
-	//hist( foo, 10, ( max(foo, 10) - min(foo, 10) ) / 5, "rmax_hist.dat" );
-	//printf("\n %lf %lf %lf\n", max(foo, 10) , min(foo, 10), ( max(foo, 10) - min(foo, 10) ) / 5);
-	//SL();
-    //ololo();
+    write_cyl(&cyl_par, output_par);
+    write_cyl(&cyl_ort, output_ort);
+
+    FILE *F1, *F2, *F3, *F4;
+    F1 = fopen("count_par.dat", "w");
+    F2 = fopen("count_ort.dat", "w");
+    F3 = fopen("rmax.dat", "w");
+    F4 = fopen("grid.dat", "w");
+    int i, k; 
+    for(i=0; i<N; i++) {
+        for( k=0; k<grid_n; k++ ) {
+            fprintf( F1, " %d ", cyl_par.m[i][k] );
+            fprintf( F2, " %d ", cyl_ort.m[i][k] );
+        }
+        fprintf( F1, "\n" );
+        fprintf( F2, "\n" );
+    }
+    for(i=0; i<N; i++) {
+        fprintf( F3, "%lf %lf %lf ", p[i][0], p[i][1], p[i][2] ); 
+        fprintf( F3, "%lf ", cyl_ort.R_max[i] );
+        fprintf( F3, "%lf ", cyl_par.R_max[i] );
+        fprintf( F3, "\n");
+    }
+    for( k=0; k<grid_n; k++ ) {
+        fprintf( F4, "%lf \n", grid[k] );
+    }
+    fclose(F1);
+    fclose(F2);
+    fclose(F3);
+    fclose(F4);
+
+    // write_rmax();
 }
 
 int main( int argc, char *argv[] ) {
-	char optString[] = {"d:N:g:n:h:a:b:r:q:o:c"};
+	char optString[] = {"d:N:g:n:h:a:b:r:q:o:cH:"};
 	int opt, got_out = 0; 
 	opt = getopt( argc, argv, optString );
 	while( opt != -1 ) {
@@ -843,11 +901,10 @@ int main( int argc, char *argv[] ) {
 				break ;
 			case 'q': 
 				sscanf(optarg, "%lf", &q); 
-				//sscanf(optarg, "%lf", %q);
 				break;
 			case 'o':
 				got_out = 1;
-				output = optarg; 
+				prefix = optarg; 
 				break;
             case 'c': 
                 SELECT_COORDINATES = 1; // spherical
@@ -856,6 +913,10 @@ int main( int argc, char *argv[] ) {
 			case 'h': 
 				sscanf(optarg, "%lf", &h); 
 				break;
+			case 'H': 
+				sscanf(optarg, "%lf", &H); 
+				break;
+
 
 			default:
 				printf("What? %d\n", opt);
@@ -864,11 +925,14 @@ int main( int argc, char *argv[] ) {
 	    opt = getopt( argc, argv, optString );
 	}
 	if( got_out == 1 ) {
-        name = output; 
+        name = prefix; 
     }
-	char tmp[80]; 
-	sprintf(tmp, "%s_n_cyl_par.dat", name);
-	output = tmp;
+	char tmp1[80]; 
+	sprintf(tmp1, "%s_n_cyl_par.dat", name);
+	output_par = tmp1;
+	char tmp2[80]; 
+	sprintf(tmp2, "%s_n_cyl_ort.dat", name);
+	output_ort = tmp2;
     _gogogo();
 	return(0);	
 }

@@ -1,7 +1,7 @@
 BIN=select.bin
 SRC=select.c
 
-all : ${BIN}
+all : ${BIN} s.bin
 
 ${BIN} : ${SRC}
 	gcc $^ -O2 -lm -o $@

@@ -6,7 +6,7 @@
 #include <time.h>
 
 
-int N = 100000, N1 = 100, d=3, n=10000;
+int N = 100000, N1 = 10, d=3, n=10000;
 double R = 1.0, D=2.7, alpha;
 double **FOO;
 
@@ -27,6 +27,8 @@ select_trema( /*char* inp_name,*/  char* out_name ) {
 		return 1; 
 	}
 	
+    FILE * out2; 
+    out2 = fopen("mad.dat", "w");
 	count = 0;
 	void_centers();
 	point = (double *) calloc( d, sizeof( double ) );
@@ -34,32 +36,41 @@ select_trema( /*char* inp_name,*/  char* out_name ) {
 		//count++;
 		r = 0;
 		for(i=0; i<d; i++) {
-			point[i] = ((double) rand() / RAND_MAX) ;	
+			point[i] = (((double) rand() / RAND_MAX)) ;	
 			r += point[i]*point[i]; 
 		}
 		if(r>1) continue; 
 		if(is_it_good(point)) { 
 			for(i=0; i<d; i++) {
-				fprintf(out, " %lf ", point[i] * R);
+				fprintf(out, " %3.10lf ", point[i] * R);
 			}	
 			fprintf(out, "\n");
 			count++;
-			printf("\r%d", count);
+			printf("\r%d%%", (int) (1.*count/n*100.));
 		}
+		for(i=0; i<d; i++) {
+			fprintf(out2, " %lf ", point[i] * R);
+		}	
+		fprintf(out2, "\n");
+        
 	}
 
 	printf("\n");
 	fclose(out);
-	/*
+	fclose(out2);
+
 	out = fopen("pewpew.dat", "w");
 	double C = d-D;
 
 	for(i=0; i<N; i++) {
 		double S = C/(2.0*(i+1));
-		fprintf(out, "%lf %lf %lf\n", FOO[i][0], FOO[i][1], S/M_PI);
+        if( sqrt(FOO[i][0] * FOO[i][0] +
+                 FOO[i][1] * FOO[i][1] +
+                 FOO[i][2] * FOO[i][2] ) > 1 )
+            continue;
+		fprintf(out, "%lf %lf %lf %lf\n", FOO[i][0]*R, FOO[i][1]*R, FOO[i][2]*R, FOO[i][3]);
 	}
 	fclose(out);
-	*/
 	//fclose(inp);
 	return N;
 }
@@ -133,13 +144,13 @@ int main(int argc, char** argv) {
 			return 42;
 	}
 	srand(time(0));
-    N1 = limit_N(0.3);
+    // N1 = limit_N(0.3);
     if( r != -1 ) { 
         N = limit_N( r ); 
     } else {
         r = limit_r( N );
     }
-	printf("N = %d, N1 = %d,  d=%d, D=%e, r = %e\n", N, N1, d, D, r );
+	printf("voids N = %d\t points n = %d\nskip N1 = %d\tspace  d=%d\tdim D=%1.3e\t???? r = %1.3e\talpha = %1.3e\n", N, n, N1, d, D, r, alpha );
 	select_trema(/*inp_name,*/ out_name);
 	return 0;
 }

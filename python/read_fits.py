@@ -5,7 +5,7 @@ import pyfits as pf
 # DAME_SDSS_DR9_trainset.fits
 FILENAME = "DAME_SDSS_DR9_testset.fits"
 
-f = pf.pyfits.open( FILENAME )
+f = pf.open( FILENAME )
 
 cols = f[1].columns
 print cols.names

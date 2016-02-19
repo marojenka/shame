@@ -4,7 +4,7 @@ CoordinatesSphericalToDecart <- function( a, b, r ) {
 	xyz <- cbind(
 			cos(a) * cos(b) * r,
 			sin(a) * cos(b) * r,
-					 sin(b) * r 
+				 sin(b) * r 
 	)
 	a <- a / pi * 180
 	b <- b / pi * 180

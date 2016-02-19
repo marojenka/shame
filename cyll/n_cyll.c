@@ -316,7 +316,7 @@ write_cyl(cyl *foo, char* name_out) {
         fprintf(foutput, "%d ", foo->m[max_boo_ind][k] );
         fprintf(foutput, "%d ", sum );
         fprintf(foutput, "%d ", dcount );
-        fprintf(foutput, "%lf ", mean );
+        fprintf(foutput, "%lf ", (double) dcount / Nc );
         fprintf(foutput, "%lf ", (double) Nc2 != 0 ? sum / Nc2 : -1);
         fprintf(foutput, "\n");
     }

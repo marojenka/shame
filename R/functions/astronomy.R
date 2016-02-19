@@ -1,7 +1,10 @@
 RedshiftToDistance <- function(z, h = 1, Omega.m = 0.25, Omega.L = 0.75) {
 	r <- 1:length(z)*0
 	for( i in 1:length(z)) {
-		r[i] <- integrate(function(y) {1 / (y*(Omega.m/y+Omega.L*y^2)^0.5)}, 1/(1+z[i]), 1)$value * 3000
+        if( z[i] <= 0 ) 
+            r[i] <- 0 
+        else 
+            r[i] <- integrate(function(y) {1 / (y*(Omega.m/y+Omega.L*y^2)^0.5)}, 1/(1+z[i]), 1)$value * 299792.458 / 100
 	}
 	return(r / h)
 }

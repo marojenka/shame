@@ -28,9 +28,10 @@ myint  **m;
 double *neighbor; 
 
 double A[2] = {0, 360}, B[2] = {-90, 90}, R[2] = {0, 300};
-double q = 1;
-double r2d = 180/M_PI, d2r = M_PI / 180;
+double q = 1; // 0 < q <= 1 what part of data should we use 
+
 double n0, solid_angle;
+double r2d = 180/M_PI, d2r = M_PI / 180;
 
 int grid_index(double r);
 typedef struct statK {
